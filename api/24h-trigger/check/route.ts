@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
-import TriggerCampaign from "@/plugin/24h-trigger/models/trigger-campaign";
-import TriggerRecord from "@/plugin/24h-trigger/models/trigger-record";
+import Setting from "@/models/settings";
+import { getCollection } from "@/lib/mongodb";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +11,40 @@ function getClientIp(req: NextRequest): string {
     return req.headers.get("x-real-ip") || "127.0.0.1";
 }
 
+const DEFAULTS = {
+    title: "Post-Order 24h Offer",
+    triggerType: "free_delivery",
+    triggerValue: 0,
+    durationHours: 24,
+    bonusOnReorder: false,
+    bonusType: "increase_percentage",
+    bonusValue: 0,
+    maxReorders: 3,
+    isActive: true,
+    offerMessage: "",
+    bannerImage: "",
+    bgColor: "#fef3c7",
+    textColor: "#92400e",
+    countdownColor: "#f59e0b",
+    bannerStyle: "style-1",
+    bottomOffset: 16,
+    sideOffset: 16,
+    bannerPosition: "center",
+};
+
 export async function GET(req: NextRequest) {
     try {
         await connectDB();
+
+        // Get campaign config from global settings
+        const doc = await Setting.findOne({ title: "24h_trigger_config" }).lean();
+        const config = doc?.content ? { ...DEFAULTS, ...(typeof doc.content === "string" ? JSON.parse(doc.content) : doc.content) } : DEFAULTS;
+
+        if (!config.isActive) {
+            return NextResponse.json({ active: false });
+        }
+
+        // Resolve identifier
         const identifier = req.nextUrl.searchParams.get("identifier");
         const identifierType = req.nextUrl.searchParams.get("type") || "guest";
 
@@ -26,53 +57,66 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ active: false });
         }
 
-        const campaign = await TriggerCampaign.findOne({ isActive: true }).lean();
-        if (!campaign) {
+        // Query Order collection directly
+        const orders = await getCollection("orders");
+
+        // Find the most recent order for this user
+        const matchFilter: any = identifierType === "user"
+            ? { userId: resolvedId }
+            : { "metadata.ipAddress": resolvedId };
+
+        const recentOrder = await orders
+            .findOne(matchFilter, { sort: { createdAt: -1 } });
+
+        if (!recentOrder) {
             return NextResponse.json({ active: false });
         }
 
-        const now = new Date();
-        const record = await TriggerRecord.findOne({
-            identifier: resolvedId,
-            expiresAt: { $gt: now },
-        }).sort({ createdAt: -1 }).lean();
+        // Check if within the trigger window
+        const orderTime = new Date(recentOrder.createdAt).getTime();
+        const durationMs = config.durationHours * 60 * 60 * 1000;
+        const expiresAt = orderTime + durationMs;
+        const now = Date.now();
 
-        if (!record) {
+        if (now > expiresAt) {
             return NextResponse.json({ active: false });
         }
 
-        const totalReorders = await TriggerRecord.countDocuments({
-            identifier: resolvedId,
-            expiresAt: { $gt: new Date(record.createdAt.getTime() - campaign.durationHours * 60 * 60 * 1000) },
+        // Count total orders within the window for bonus calculation
+        const windowStart = new Date(orderTime);
+        const totalOrders = await orders.countDocuments({
+            ...matchFilter,
+            createdAt: { $gte: windowStart },
         });
 
-        const remainingMs = new Date(record.expiresAt).getTime() - now.getTime();
+        // Calculate effective discount with bonus
+        let effectiveType = config.triggerType;
+        let effectiveValue = config.triggerValue;
 
-        let effectiveType = campaign.triggerType;
-        let effectiveValue = campaign.triggerValue;
-
-        if (campaign.bonusOnReorder && totalReorders > 1) {
-            const bonusTimes = Math.min(totalReorders - 1, campaign.maxReorders);
-            effectiveValue = campaign.triggerValue + (campaign.bonusValue * bonusTimes);
+        if (config.bonusOnReorder && totalOrders > 1) {
+            const bonusTimes = Math.min(totalOrders - 1, config.maxReorders);
+            effectiveValue = config.triggerValue + (config.bonusValue * bonusTimes);
         }
+
+        const remainingMs = expiresAt - now;
 
         return NextResponse.json({
             active: true,
             triggerType: effectiveType,
             triggerValue: effectiveValue,
-            expiresAt: record.expiresAt,
+            expiresAt: new Date(expiresAt).toISOString(),
             remainingMs,
-            reorderCount: totalReorders,
-            title: campaign.title,
-            offerMessage: campaign.offerMessage,
-            bannerImage: campaign.bannerImage,
-            bgColor: campaign.bgColor,
-            textColor: campaign.textColor,
-            countdownColor: campaign.countdownColor,
-            bannerStyle: campaign.bannerStyle,
-            bottomOffset: campaign.bottomOffset,
-            sideOffset: campaign.sideOffset,
-            bannerPosition: campaign.bannerPosition,
+            reorderCount: totalOrders,
+            title: config.title,
+            offerMessage: config.offerMessage,
+            bannerImage: config.bannerImage,
+            bgColor: config.bgColor,
+            textColor: config.textColor,
+            countdownColor: config.countdownColor,
+            bannerStyle: config.bannerStyle,
+            bottomOffset: config.bottomOffset,
+            sideOffset: config.sideOffset,
+            bannerPosition: config.bannerPosition,
         });
     } catch (err) {
         console.error("24h-trigger check error:", err);

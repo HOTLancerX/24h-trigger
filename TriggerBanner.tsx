@@ -103,7 +103,7 @@ export default function TriggerBanner() {
         if (!trigger?.active || !trigger.expiresAt) return;
         const timer = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(timer);
-    }, [trigger?.active, trigger.expiresAt]);
+    }, [trigger?.active, trigger?.expiresAt]);
 
     if (loading || !trigger?.active || dismissed) return null;
 

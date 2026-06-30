@@ -12,6 +12,7 @@ interface StyleProps {
     countdownColor: string;
     timeLeft: string;
     onDismiss: () => void;
+    progress?: number;
 }
 
 export default function Style2({ title, offerLabel, offerMessage, bannerImage, bgColor, textColor, countdownColor, timeLeft, onDismiss }: StyleProps) {

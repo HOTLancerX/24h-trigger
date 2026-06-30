@@ -6,7 +6,6 @@ import { useToast } from '@/components/ui/Toast';
 import Gallery from '@/components/Gallery';
 
 interface TriggerCampaign {
-    _id?: string;
     title: string;
     triggerType: 'free_delivery' | 'fixed_discount' | 'percentage_discount';
     triggerValue: number;

@@ -22,12 +22,12 @@ export default function Style3({ title, offerLabel, offerMessage, bannerImage, b
             {bannerImage && (
                 <img src={bannerImage} alt={title} className="w-10 h-10 rounded-full object-cover shrink-0 ml-0.5" />
             )}
-            11
             <div className="flex-1 px-4 py-2 flex items-center gap-3 min-w-0">
                 <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black leading-tight truncate">{offerLabel}</p>
-                    {offerMessage && (
-                        <p className="text-[10px] opacity-70 truncate">{offerMessage}</p>
+                    {offerMessage ? (
+                        <p className="text-xs font-black leading-tight truncate">{offerMessage}</p>
+                    ) : (
+                        <p className="text-xs font-black leading-tight truncate">{offerLabel}</p>
                     )}
                 </div>
                 <span className="text-[10px] font-black whitespace-nowrap px-2 py-0.5 rounded-full"
