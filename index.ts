@@ -10,7 +10,7 @@ export const PLUGINS: PluginMeta = {
     description: "Post-order 24-hour discount trigger — rewards returning customers with time-limited offers.",
     author: "System",
     path: "https://github.com/HOTLancerX/24h-trigger.git",
-    icon: "arcticons:lien-viet-24h",
+    icon: "bxs:offer",
     color: "from-amber-500 to-orange-600",
 };
 
