@@ -4,7 +4,7 @@ import TriggerBanner from "./TriggerBanner";
 import TwentyFourHourTriggerSettings from "./settings/TwentyFourHourTriggerSettings";
 
 export const PLUGINS: PluginMeta = {
-    nx: "com.system.24h-trigger",
+    nx: "24h-trigger",
     name: "24h-trigger",
     version: "1.0.0",
     description: "Post-order 24-hour discount trigger — rewards returning customers with time-limited offers.",
