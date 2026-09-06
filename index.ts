@@ -21,7 +21,7 @@ export function register() {
             label: "24h Trigger",
             icon: "arcticons:lien-viet-24h",
             slug: "24h-trigger",
-            parent: "",
+            parent: "product",
             position: 22,
         },
     ], PLUGINS.nx);
